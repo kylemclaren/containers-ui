@@ -112,7 +112,9 @@ jobs:
           SPARKLE_VERSION=2.9.4
           curl -fsSL "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz" -o /tmp/sparkle.tar.xz
           mkdir -p /tmp/sparkle && tar -xf /tmp/sparkle.tar.xz -C /tmp/sparkle
-          SIGN_UPDATE="$(find /tmp/sparkle -name sign_update -type f | head -1)"
+          # Explicit path: the tarball also ships bin/old_dsa_scripts/sign_update
+          # (legacy DSA), which must NOT be used for EdDSA signing.
+          SIGN_UPDATE=/tmp/sparkle/bin/sign_update
 
           KEY_FILE="$(mktemp)"
           printf '%s' "$SPARKLE_ED_PRIVATE_KEY" > "$KEY_FILE"
