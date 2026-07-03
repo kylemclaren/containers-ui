@@ -11,6 +11,7 @@ xcuserdata/
 DerivedData/
 build/
 .build/
+dist/
 
 # XcodeGen generates the project; it is not checked in.
 ContainersUI.xcodeproj/

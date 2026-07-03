@@ -101,6 +101,56 @@ project.yml     XcodeGen project definition
 
 The app runs **unsandboxed** (see `Resources/ContainersUI.entitlements`) because it spawns `/usr/local/bin/container`, which talks to a launchd service over XPC — the App Sandbox blocks that. Distribute with **Developer ID + notarization** (Hardened Runtime is enabled), not the Mac App Store. Set your `DEVELOPMENT_TEAM` in `project.yml`, or sign "to run locally" in Xcode for development.
 
+## Releases & CI
+
+Two GitHub Actions workflows live in [`.github/workflows/`](.github/workflows):
+
+- **`ci.yml`** — on every push to `main` and every PR: generates the project, builds, and runs the full test suite.
+- **`release.yml`** — on a pushed `v*` tag (or a manual run): builds a Release archive, optionally signs + notarizes it, wraps it in a DMG, and publishes a **GitHub Release** with the DMG and a `SHA256SUMS.txt` attached.
+
+### Cutting a release
+
+```bash
+git tag v1.2.0        # the leading "v" is stripped; 1.2.0 becomes the app's version
+git push origin v1.2.0
+```
+
+The workflow stamps `MARKETING_VERSION` from the tag, so the built app's version always matches the release. A tag containing a hyphen (e.g. `v1.2.0-beta1`) is published as a **pre-release**. You can also trigger `release.yml` manually from the Actions tab (with an optional version input) to produce a DMG artifact without publishing a release.
+
+### Signing & notarization secrets
+
+The release pipeline degrades gracefully — with **no secrets set it still builds and publishes an unsigned DMG**. To ship a Gatekeeper-clean, notarized build, add these repository secrets (Settings → Secrets and variables → Actions):
+
+| Secret | What it is |
+|--------|-----------|
+| `MACOS_CERTIFICATE_BASE64` | Your **Developer ID Application** certificate + private key exported as a `.p12`, then base64-encoded (`base64 -i cert.p12 \| pbcopy`). |
+| `MACOS_CERTIFICATE_PASSWORD` | The password you set when exporting the `.p12`. |
+| `APPLE_TEAM_ID` | Your 10-character Apple Developer Team ID. |
+| `APPLE_ID` | The Apple ID email used for notarization. |
+| `APPLE_APP_SPECIFIC_PASSWORD` | An [app-specific password](https://support.apple.com/en-us/102654) for that Apple ID (used by `notarytool`). |
+
+Behavior by what's present:
+
+- **All five** → signed, notarized, stapled. Opens with a double-click.
+- **Just the certificate three** (`MACOS_CERTIFICATE_*`, `APPLE_TEAM_ID`) → signed but not notarized. First launch needs a right-click → **Open**.
+- **None** → unsigned. Clear the quarantine flag after copying to `/Applications`:
+
+  ```bash
+  xattr -dr com.apple.quarantine /Applications/ContainersUI.app
+  ```
+
+The release notes generated for each build spell out which of these applies.
+
+### Building a DMG locally
+
+The workflow just calls scripts you can run yourself:
+
+```bash
+VERSION=1.2.0 scripts/build-release.sh          # unsigned; produces dist/Containers-1.2.0.dmg
+# or, signed, if a Developer ID identity is in your keychain:
+VERSION=1.2.0 SIGNING_IDENTITY="Developer ID Application: You (TEAMID)" TEAM_ID=TEAMID scripts/build-release.sh
+```
+
 ## Status
 
 v1. This is an independent project and is not affiliated with or endorsed by Apple. It complements the `container` tool, which remains under active development.
