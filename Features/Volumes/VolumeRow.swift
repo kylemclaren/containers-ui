@@ -1,14 +1,13 @@
 import SwiftUI
 import AppKit
 
-struct ImageRow: View {
-    let image: ContainerImage
+/// A rich, hoverable card representing one volume.
+struct VolumeRow: View {
+    let volume: ContainerVolume
     let isSelected: Bool
     let isBusy: Bool
 
     var onSelect: () -> Void
-    var onRun: (() -> Void)?
-    var onTag: () -> Void
     var onDelete: () -> Void
 
     @State private var hovering = false
@@ -17,21 +16,6 @@ struct ImageRow: View {
     /// animation, so chip text never reflows mid-transition).
     private var showActions: Bool { hovering || isSelected || isBusy }
 
-    private var titleText: String {
-        let parsed = image.parsedReference
-        return parsed.repository + (parsed.tag.map { ":\($0)" } ?? "")
-    }
-
-    private var subtitleText: String {
-        var parts = [image.shortID]
-        let platforms = image.platforms.map(\.display)
-        if !platforms.isEmpty { parts.append(platforms.joined(separator: ", ")) }
-        if let registry = image.parsedReference.registry, registry != "docker.io" {
-            parts.append(registry)
-        }
-        return parts.joined(separator: "  ·  ")
-    }
-
     var body: some View {
         Button(action: onSelect) {
             HStack(spacing: 12) {
@@ -39,24 +23,25 @@ struct ImageRow: View {
                     .fill(Color.accentColor.opacity(0.14))
                     .frame(width: 36, height: 36)
                     .overlay {
-                        Image(systemName: "square.stack.3d.up.fill")
+                        Image(systemName: "externaldrive.fill")
                             .font(.system(size: 15, weight: .medium))
                             .foregroundStyle(Color.accentColor)
                     }
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(titleText)
+                    Text(volume.name)
                         .font(Theme.Typography.headline)
                         .lineLimit(1)
-                    Text(subtitleText)
+                    Text(volume.source)
                         .font(Theme.Typography.monoCaption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
+                        .truncationMode(.middle)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 ZStack(alignment: .trailing) {
-                    StatChip(systemImage: "internaldrive", text: Formatting.bytes(image.displaySize))
+                    metadata
                         .fixedSize()
                         .opacity(showActions ? 0 : 1)
 
@@ -91,15 +76,20 @@ struct ImageRow: View {
         .fixedSize(horizontal: false, vertical: true)
     }
 
+    @ViewBuilder private var metadata: some View {
+        HStack(spacing: 6) {
+            if let size = volume.sizeInBytes {
+                StatChip(systemImage: "internaldrive", text: Formatting.bytes(size))
+            }
+            StatChip(systemImage: "cylinder.split.1x2", text: "\(volume.format) · \(volume.driver)")
+        }
+    }
+
     @ViewBuilder private var actions: some View {
         HStack(spacing: 6) {
             if isBusy {
                 ProgressView().controlSize(.small).frame(width: Theme.Metrics.controlHeight)
             } else if showActions {
-                if let onRun {
-                    CircleIconButton(systemImage: "play.fill", tint: .green, help: "Run", action: onRun)
-                }
-                CircleIconButton(systemImage: "tag", help: "Tag", action: onTag)
                 Menu {
                     menuItems
                 } label: {
@@ -117,13 +107,9 @@ struct ImageRow: View {
 
     /// Shared contents for the hover ellipsis menu and the row's right-click menu.
     @ViewBuilder private var menuItems: some View {
-        if let onRun {
-            Button("Run…", systemImage: "play.fill", action: onRun)
-        }
-        Button("Tag…", systemImage: "tag", action: onTag)
-        Button("Copy reference", systemImage: "doc.on.doc") {
+        Button("Copy source path", systemImage: "doc.on.doc") {
             NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(image.reference, forType: .string)
+            NSPasteboard.general.setString(volume.source, forType: .string)
         }
         Divider()
         Button("Delete", systemImage: "trash", role: .destructive, action: onDelete)

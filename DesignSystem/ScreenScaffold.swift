@@ -21,8 +21,8 @@ struct ScreenScaffold<ToolbarContent: View, Content: View>: View {
                             .animation(Theme.Motion.smooth, value: subtitle)
                     }
                 }
-                Spacer(minLength: 12)
-                HStack(spacing: 8) { toolbar() }
+                Spacer(minLength: 16)
+                HStack(spacing: 10) { toolbar() }
             }
             .padding(.horizontal, 20)
             .padding(.top, 18)

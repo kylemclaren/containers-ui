@@ -56,7 +56,7 @@ SwiftUI Views  ──▶  @Observable ViewModels  ──▶  Services  ──▶
 
 - **`CommandRunner`** (`Core/CLI`) — a protocol over process execution. `ProcessCommandRunner` runs the real binary; `MockCommandRunner` feeds fixtures in tests.
 - **`ContainerCLI`** — resolves the `container` binary, runs invocations, classifies failures into a typed `CLIError`, and decodes JSON with a decoder configured to match the CLI's encoder (ISO-8601 dates, no key-strategy remapping).
-- **Services** — `ContainerService`, `ImageService`, `SystemService` build exact argv (via pure, unit-tested `…Arguments(…)` functions) and return `Codable` models.
+- **Services** — `ContainerService`, `ImageService`, `VolumeService`, `NetworkService`, `SystemService` build exact argv (via pure, unit-tested `…Arguments(…)` functions) and return `Codable` models.
 - **Models** (`Core/Models`) — Swift structs that mirror the CLI's JSON shapes exactly, including the OCI config's PascalCase keys and `snake_case` `diff_ids`/`created_by`.
 - **Design system** (`DesignSystem/`) — a small component library (soft pill controls, translucent material cards with gradient hairlines, status badges, springy motion) shared across screens.
 
@@ -64,13 +64,16 @@ SwiftUI Views  ──▶  @Observable ViewModels  ──▶  Services  ──▶
 
 `container`'s Swift packages are only API-stable within patch versions, and talking to its XPC `apiserver` directly requires matching entitlements and tracks internal changes. The CLI is the documented, stable surface, and almost every read command supports `--format json`. Shelling out keeps this app decoupled and resilient — the same approach mature Docker/Podman GUIs take.
 
-## Features (v1)
+## Features
 
 | Area | Capabilities |
 |------|--------------|
-| **Containers** | List (all/running), live stats, inspect, start/stop/restart/kill, delete, streaming logs, exec, and a full **Run** form. |
-| **Images** | List, inspect (config/env/layers/platforms), **Pull** with streaming progress, tag, delete. |
-| **System** | Service status, versions, disk usage, and start/stop the system service. |
+| **Containers** | List (all/running), **live CPU/memory charts** with real CPU % derived from counter deltas, inspect, start/stop/restart/kill, delete, prune, streaming logs, exec, and a full **Run** form (shell-style quoting supported). |
+| **Images** | List, inspect (config/env/layers/platforms), **Pull** with streaming progress, **run a container straight from an image**, tag, delete, prune. |
+| **Volumes** | List, inspect, create (with size/format), delete, prune. |
+| **Networks** | List, inspect (subnets/gateway), create (NAT or host-only, custom subnets), delete, prune — with the built-in network protected. |
+| **System** | Service status, versions, disk usage, reclaim-space pruning, and start/stop the system service. |
+| **Everywhere** | **⌘K command palette** (fuzzy search across every container, image, volume, network, and action), menu-bar quick controls, right-click context menus, and ⌘R refresh of the active screen. |
 
 The app auto-detects the `container` binary (and lets you set a custom path in **Settings**), and surfaces a clear state when the tool isn't installed or the service isn't running.
 
@@ -86,6 +89,8 @@ DesignSystem/   Theme tokens + reusable components
 Features/
   Containers/   Containers screen, row, detail, logs, run
   Images/       Images screen, row, detail, pull, tag
+  Volumes/      Volumes screen, row, detail, create
+  Networks/     Networks screen, row, detail, create
   System/       System screen
 Resources/      Assets, entitlements, generated Info.plist
 Tests/          Logic tests + fixtures + mock runner

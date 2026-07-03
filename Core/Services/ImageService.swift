@@ -29,6 +29,10 @@ struct ImageService: Sendable {
         ["image", "tag", source, target]
     }
 
+    static func pruneArguments() -> [String] {
+        ["image", "prune"]
+    }
+
     // MARK: Operations
 
     func list() async throws -> [ContainerImage] {
@@ -52,5 +56,11 @@ struct ImageService: Sendable {
     @discardableResult
     func tag(source: String, target: String) async throws -> String {
         try await cli.text(Self.tagArguments(source: source, target: target))
+    }
+
+    /// Removes dangling and unreferenced images.
+    @discardableResult
+    func prune() async throws -> String {
+        try await cli.text(Self.pruneArguments())
     }
 }

@@ -1,14 +1,13 @@
 import SwiftUI
 import AppKit
 
-struct ImageRow: View {
-    let image: ContainerImage
+/// A rich, hoverable card representing one network.
+struct NetworkRow: View {
+    let network: ContainerNetwork
     let isSelected: Bool
     let isBusy: Bool
 
     var onSelect: () -> Void
-    var onRun: (() -> Void)?
-    var onTag: () -> Void
     var onDelete: () -> Void
 
     @State private var hovering = false
@@ -17,38 +16,16 @@ struct ImageRow: View {
     /// animation, so chip text never reflows mid-transition).
     private var showActions: Bool { hovering || isSelected || isBusy }
 
-    private var titleText: String {
-        let parsed = image.parsedReference
-        return parsed.repository + (parsed.tag.map { ":\($0)" } ?? "")
-    }
-
-    private var subtitleText: String {
-        var parts = [image.shortID]
-        let platforms = image.platforms.map(\.display)
-        if !platforms.isEmpty { parts.append(platforms.joined(separator: ", ")) }
-        if let registry = image.parsedReference.registry, registry != "docker.io" {
-            parts.append(registry)
-        }
-        return parts.joined(separator: "  ·  ")
-    }
-
     var body: some View {
         Button(action: onSelect) {
             HStack(spacing: 12) {
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(Color.accentColor.opacity(0.14))
-                    .frame(width: 36, height: 36)
-                    .overlay {
-                        Image(systemName: "square.stack.3d.up.fill")
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundStyle(Color.accentColor)
-                    }
+                iconTile
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(titleText)
+                    Text(network.name)
                         .font(Theme.Typography.headline)
                         .lineLimit(1)
-                    Text(subtitleText)
+                    Text(network.configuration.plugin)
                         .font(Theme.Typography.monoCaption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -56,7 +33,7 @@ struct ImageRow: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 ZStack(alignment: .trailing) {
-                    StatChip(systemImage: "internaldrive", text: Formatting.bytes(image.displaySize))
+                    metadata
                         .fixedSize()
                         .opacity(showActions ? 0 : 1)
 
@@ -91,15 +68,40 @@ struct ImageRow: View {
         .fixedSize(horizontal: false, vertical: true)
     }
 
+    private var iconTile: some View {
+        RoundedRectangle(cornerRadius: 9, style: .continuous)
+            .fill(Color.accentColor.opacity(0.14))
+            .frame(width: 36, height: 36)
+            .overlay {
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: "point.3.filled.connected.trianglepath.dotted")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(Color.accentColor)
+                    if network.isRunning {
+                        PulsingDot(color: .green, active: true, size: 6)
+                            .offset(x: 4, y: -4)
+                    }
+                }
+            }
+    }
+
+    @ViewBuilder private var metadata: some View {
+        HStack(spacing: 6) {
+            StatChip(systemImage: "point.3.connected.trianglepath.dotted", text: network.mode)
+            if let subnet = network.ipv4Subnet {
+                StatChip(systemImage: "network", text: subnet)
+            }
+            if network.isBuiltin {
+                StatChip(systemImage: "lock.fill", text: "built-in")
+            }
+        }
+    }
+
     @ViewBuilder private var actions: some View {
         HStack(spacing: 6) {
             if isBusy {
                 ProgressView().controlSize(.small).frame(width: Theme.Metrics.controlHeight)
             } else if showActions {
-                if let onRun {
-                    CircleIconButton(systemImage: "play.fill", tint: .green, help: "Run", action: onRun)
-                }
-                CircleIconButton(systemImage: "tag", help: "Tag", action: onTag)
                 Menu {
                     menuItems
                 } label: {
@@ -116,16 +118,24 @@ struct ImageRow: View {
     }
 
     /// Shared contents for the hover ellipsis menu and the row's right-click menu.
+    /// Delete is hidden for the CLI's built-in `default` network, which it refuses
+    /// to remove.
     @ViewBuilder private var menuItems: some View {
-        if let onRun {
-            Button("Run…", systemImage: "play.fill", action: onRun)
+        if let subnet = network.ipv4Subnet {
+            Button("Copy subnet", systemImage: "doc.on.doc") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(subnet, forType: .string)
+            }
         }
-        Button("Tag…", systemImage: "tag", action: onTag)
-        Button("Copy reference", systemImage: "doc.on.doc") {
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(image.reference, forType: .string)
+        if let gateway = network.ipv4Gateway {
+            Button("Copy gateway", systemImage: "doc.on.doc") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(gateway, forType: .string)
+            }
         }
-        Divider()
-        Button("Delete", systemImage: "trash", role: .destructive, action: onDelete)
+        if !network.isBuiltin {
+            Divider()
+            Button("Delete", systemImage: "trash", role: .destructive, action: onDelete)
+        }
     }
 }

@@ -14,6 +14,7 @@ struct SearchField: View {
             TextField(prompt, text: $text)
                 .textFieldStyle(.plain)
                 .font(Theme.Typography.callout)
+                .lineLimit(1)
             if !text.isEmpty {
                 Button {
                     text = ""
@@ -24,7 +25,10 @@ struct SearchField: View {
             }
         }
         .padding(.horizontal, 11)
-        .frame(width: width, height: Theme.Metrics.controlHeight)
+        // Flexible: the search field yields width to the toolbar buttons when
+        // space is tight, rather than the buttons compressing/wrapping.
+        .frame(minWidth: 90, idealWidth: width, maxWidth: width)
+        .frame(height: Theme.Metrics.controlHeight)
         .background(Theme.Palette.controlBackground, in: Capsule())
         .overlay { Capsule().strokeBorder(Theme.Palette.hairline, lineWidth: 1) }
     }
@@ -46,6 +50,8 @@ struct SegmentedPill<Value: Hashable>: View {
                 } label: {
                     Text(option.label)
                         .font(Theme.Typography.caption)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
                         .foregroundStyle(isSelected ? Color.primary : .secondary)
                         .padding(.horizontal, 12)
                         .frame(height: Theme.Metrics.controlHeight - 6)
@@ -64,5 +70,6 @@ struct SegmentedPill<Value: Hashable>: View {
         }
         .padding(3)
         .background(Theme.Palette.controlBackground, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .fixedSize()
     }
 }

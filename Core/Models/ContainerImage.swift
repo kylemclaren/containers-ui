@@ -87,7 +87,6 @@ struct OCIImage: Codable, Hashable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case created, author, architecture, os, variant, config, rootfs, history
-        case osVersion, osFeatures
     }
 }
 

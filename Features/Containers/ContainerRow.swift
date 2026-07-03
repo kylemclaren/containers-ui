@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// A rich, hoverable card representing one container.
 struct ContainerRow: View {
@@ -17,6 +18,10 @@ struct ContainerRow: View {
 
     @State private var hovering = false
 
+    /// Actions replace the info cluster in the same trailing slot (no width
+    /// animation, so chip text never reflows mid-transition).
+    private var showActions: Bool { hovering || isSelected || isBusy }
+
     var body: some View {
         Button(action: onSelect) {
             HStack(spacing: 12) {
@@ -33,18 +38,25 @@ struct ContainerRow: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                metadata
+                ZStack(alignment: .trailing) {
+                    HStack(spacing: 6) {
+                        metadata
+                        StatusBadge(state: container.state)
+                    }
+                    .fixedSize()
+                    .opacity(showActions ? 0 : 1)
 
-                StatusBadge(state: container.state)
-
-                actions
-                    .frame(width: 122, alignment: .trailing)
+                    actions
+                        .opacity(showActions ? 1 : 0)
+                }
+                .animation(Theme.Motion.smooth, value: showActions)
             }
             .padding(.horizontal, 13)
             .padding(.vertical, 11)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .contextMenu { menuItems }
         .background(rowBackground)
         .overlay {
             RoundedRectangle(cornerRadius: Theme.Metrics.rowCorner, style: .continuous)
@@ -54,6 +66,8 @@ struct ContainerRow: View {
         .onHover { hovering in
             withAnimation(Theme.Motion.snappy) { self.hovering = hovering }
         }
+        // Hug the content's natural height; never stretch to fill the list.
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private var iconTile: some View {
@@ -78,16 +92,13 @@ struct ContainerRow: View {
                 StatChip(systemImage: "cpu", text: Formatting.cpus(container.cpus))
             }
         }
-        .opacity(hovering ? 0.0 : 1.0)
-        .frame(width: hovering ? 0 : nil)
-        .animation(Theme.Motion.snappy, value: hovering)
     }
 
     @ViewBuilder private var actions: some View {
         HStack(spacing: 6) {
             if isBusy {
                 ProgressView().controlSize(.small).frame(width: Theme.Metrics.controlHeight)
-            } else if hovering || isSelected {
+            } else if showActions {
                 if container.isRunning {
                     CircleIconButton(systemImage: "stop.fill", tint: .orange, help: "Stop", action: onStop)
                     CircleIconButton(systemImage: "arrow.clockwise", help: "Restart", action: onRestart)
@@ -96,15 +107,7 @@ struct ContainerRow: View {
                 }
                 CircleIconButton(systemImage: "text.alignleft", help: "Logs", action: onLogs)
                 Menu {
-                    if container.isRunning {
-                        Button("Restart", systemImage: "arrow.clockwise", action: onRestart)
-                        Button("Kill", systemImage: "bolt.fill", action: onKill)
-                    } else {
-                        Button("Start", systemImage: "play.fill", action: onStart)
-                    }
-                    Button("View logs", systemImage: "text.alignleft", action: onLogs)
-                    Divider()
-                    Button("Delete", systemImage: "trash", role: .destructive, action: onDelete)
+                    menuItems
                 } label: {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 13, weight: .semibold))
@@ -116,6 +119,24 @@ struct ContainerRow: View {
                 .frame(width: Theme.Metrics.controlHeight)
             }
         }
+    }
+
+    /// Shared contents for the hover ellipsis menu and the row's right-click menu.
+    @ViewBuilder private var menuItems: some View {
+        if container.isRunning {
+            Button("Stop", systemImage: "stop.fill", action: onStop)
+            Button("Restart", systemImage: "arrow.clockwise", action: onRestart)
+            Button("Kill", systemImage: "bolt.fill", action: onKill)
+        } else {
+            Button("Start", systemImage: "play.fill", action: onStart)
+        }
+        Button("View logs", systemImage: "text.alignleft", action: onLogs)
+        Divider()
+        Button("Copy ID", systemImage: "doc.on.doc") {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(container.id, forType: .string)
+        }
+        Button("Delete", systemImage: "trash", role: .destructive, action: onDelete)
     }
 
     private var rowBackground: some View {

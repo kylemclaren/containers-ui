@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct Sidebar: View {
     @Binding var selection: SidebarItem?
@@ -19,17 +20,19 @@ struct Sidebar: View {
     }
 
     private var brand: some View {
-        HStack(spacing: 9) {
-            Image(systemName: "shippingbox.fill")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(Theme.Palette.accentGradient)
+        HStack(spacing: 10) {
+            Image(nsImage: NSApplication.shared.applicationIconImage)
+                .resizable()
+                .interpolation(.high)
+                .frame(width: 24, height: 24)
             Text("Containers")
                 .font(Theme.Typography.title)
-            Spacer()
+                .lineLimit(1)
+            Spacer(minLength: 0)
         }
         .padding(.horizontal, 14)
-        .padding(.top, 16)
-        .padding(.bottom, 8)
+        .padding(.top, 18)
+        .padding(.bottom, 10)
     }
 }
 
@@ -45,15 +48,17 @@ struct BackendStatusPill: View {
         } label: {
             HStack(spacing: 9) {
                 PulsingDot(color: color, active: app.isBackendUp)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(title).font(Theme.Typography.caption).foregroundStyle(.primary)
-                    if let subtitle {
-                        Text(subtitle).font(Theme.Typography.monoCaption).foregroundStyle(.secondary)
-                    }
-                }
-                Spacer(minLength: 0)
+                Text(title)
+                    .font(Theme.Typography.caption)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.tertiary)
             }
-            .padding(9)
+            .padding(.horizontal, 11)
+            .padding(.vertical, 9)
             .frame(maxWidth: .infinity)
             .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             .overlay {
@@ -62,6 +67,7 @@ struct BackendStatusPill: View {
             }
         }
         .buttonStyle(.plain)
+        .help("Open System")
     }
 
     private var color: Color {
@@ -75,17 +81,10 @@ struct BackendStatusPill: View {
 
     private var title: String {
         switch app.backend {
-        case .up: return "Service running"
+        case .up: return "Running"
         case .checking: return "Checking…"
-        case .down: return "Service stopped"
+        case .down: return "Stopped"
         case .notInstalled: return "Not installed"
-        }
-    }
-
-    private var subtitle: String? {
-        switch app.backend {
-        case .up(let status): return "apiserver \(status.apiServerVersion)"
-        case .down, .checking, .notInstalled: return nil
         }
     }
 }

@@ -5,7 +5,8 @@ struct ContainersUIApp: App {
     @State private var app = AppModel()
 
     var body: some Scene {
-        WindowGroup {
+        // A single main window so the menu bar can re-open it by id.
+        Window("Containers", id: "main") {
             RootView()
                 .environment(app)
                 .frame(minWidth: 940, minHeight: 580)
@@ -14,11 +15,23 @@ struct ContainersUIApp: App {
         .commands {
             CommandGroup(after: .toolbar) {
                 Button("Refresh") {
-                    Task { await app.refreshBackend() }
+                    app.requestRefresh()
                 }
                 .keyboardShortcut("r", modifiers: .command)
+                Button("Command Palette") {
+                    app.paletteVisible.toggle()
+                }
+                .keyboardShortcut("k", modifiers: .command)
             }
         }
+
+        MenuBarExtra {
+            MenuBarContent()
+                .environment(app)
+        } label: {
+            MenuBarLabel(app: app)
+        }
+        .menuBarExtraStyle(.window)
 
         Settings {
             SettingsView()

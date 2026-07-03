@@ -5,6 +5,12 @@ struct SystemScreen: View {
     @State private var model: SystemViewModel
     @Environment(AppModel.self) private var app
 
+    @State private var pruningContainers = false
+    @State private var pruningImages = false
+    @State private var showPruneContainers = false
+    @State private var showPruneImages = false
+    @State private var pruneError: String?
+
     init(service: SystemService) {
         _model = State(initialValue: SystemViewModel(service: service))
     }
@@ -33,6 +39,29 @@ struct SystemScreen: View {
             content
         }
         .task { await model.load() }
+        .onChange(of: app.refreshTick) { Task { await model.load() } }
+        .confirmationDialog(
+            "Prune containers?",
+            isPresented: $showPruneContainers
+        ) {
+            Button("Prune containers", role: .destructive) {
+                Task { await pruneContainers() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This removes all stopped containers. Running containers are left untouched.")
+        }
+        .confirmationDialog(
+            "Prune images?",
+            isPresented: $showPruneImages
+        ) {
+            Button("Prune images", role: .destructive) {
+                Task { await pruneImages() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This removes dangling and unreferenced images. Images used by a container are left untouched.")
+        }
     }
 
     @ViewBuilder private var content: some View {
@@ -71,20 +100,13 @@ struct SystemScreen: View {
     private var statusHero: some View {
         let running = model.isRunning
         let tint: Color = running ? .green : (model.status?.state == .unregistered ? .red : .orange)
-        return HStack(spacing: 16) {
-            ZStack {
-                Circle().fill(tint.opacity(0.15)).frame(width: 56, height: 56)
-                Image(systemName: running ? "checkmark.circle.fill" : "pause.circle.fill")
-                    .font(.system(size: 26))
-                    .foregroundStyle(tint)
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                Text(running ? "Service running" : "Service stopped")
+        return HStack(spacing: 14) {
+            PulsingDot(color: tint, active: running, size: 12)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(statusTitle)
                     .font(Theme.Typography.title)
-                if let status = model.status {
-                    Text(running
-                         ? "\(status.apiServerAppName) \(status.apiServerVersion) (\(status.apiServerBuild))"
-                         : "Start the service to manage containers and images.")
+                if let subtitle = statusSubtitle {
+                    Text(subtitle)
                         .font(Theme.Typography.callout)
                         .foregroundStyle(.secondary)
                 }
@@ -92,6 +114,24 @@ struct SystemScreen: View {
             Spacer()
         }
         .card()
+    }
+
+    private var statusTitle: String {
+        switch model.status?.state {
+        case .running: return "Running"
+        case .unregistered: return "Not registered"
+        default: return "Stopped"
+        }
+    }
+
+    /// Only shown when the service isn't running — a brief call to action. When
+    /// running, the dot + "Running" is sufficient (versions live in their card).
+    private var statusSubtitle: String? {
+        guard !model.isRunning else { return nil }
+        switch model.status?.state {
+        case .unregistered: return "The container service isn't registered on this system."
+        default: return "Start the service to manage containers and images."
+        }
     }
 
     private var startLogCard: some View {
@@ -145,6 +185,72 @@ struct SystemScreen: View {
                 DiskUsageCard(title: "Containers", systemImage: "shippingbox.fill", usage: usage.containers)
                 DiskUsageCard(title: "Volumes", systemImage: "externaldrive.fill", usage: usage.volumes)
             }
+            reclaimSpaceRow
+        }
+    }
+
+    // MARK: Reclaim space
+
+    private var reclaimSpaceRow: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            SectionLabel(title: "Reclaim space")
+            HStack(spacing: 10) {
+                PillButton { showPruneContainers = true } label: {
+                    if pruningContainers {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Label("Prune containers", systemImage: "shippingbox")
+                    }
+                }
+                .disabled(app.containerService == nil || pruningContainers || pruningImages)
+
+                PillButton { showPruneImages = true } label: {
+                    if pruningImages {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Label("Prune images", systemImage: "square.stack.3d.up")
+                    }
+                }
+                .disabled(app.imageService == nil || pruningContainers || pruningImages)
+
+                Spacer()
+            }
+            if let pruneError {
+                Text(pruneError)
+                    .font(Theme.Typography.caption)
+                    .foregroundStyle(.red)
+            }
+        }
+        .padding(.top, 4)
+    }
+
+    private func pruneContainers() async {
+        guard let containerService = app.containerService else { return }
+        pruningContainers = true
+        pruneError = nil
+        defer { pruningContainers = false }
+        do {
+            _ = try await containerService.prune()
+            await model.load()
+        } catch let error as CLIError {
+            pruneError = error.localizedDescription
+        } catch {
+            pruneError = error.localizedDescription
+        }
+    }
+
+    private func pruneImages() async {
+        guard let imageService = app.imageService else { return }
+        pruningImages = true
+        pruneError = nil
+        defer { pruningImages = false }
+        do {
+            _ = try await imageService.prune()
+            await model.load()
+        } catch let error as CLIError {
+            pruneError = error.localizedDescription
+        } catch {
+            pruneError = error.localizedDescription
         }
     }
 }

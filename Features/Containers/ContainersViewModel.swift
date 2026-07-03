@@ -8,6 +8,8 @@ final class ContainersViewModel {
 
     var containers: [Container] = []
     var statsByID: [String: ContainerStats] = [:]
+    /// Rolling CPU/memory series for sparklines and the inspector chart.
+    let history = StatsHistory()
     var isLoading = false
     var errorMessage: String?
     var isDaemonDown = false
@@ -57,11 +59,14 @@ final class ContainersViewModel {
 
     /// Refreshes resource stats for running containers (best-effort).
     func loadStats() async {
-        guard containers.contains(where: \.isRunning) else {
+        let runningIDs = Set(containers.filter(\.isRunning).map(\.id))
+        guard !runningIDs.isEmpty else {
             statsByID = [:]
+            history.ingest([], runningIDs: [])
             return
         }
         guard let stats = try? await service.stats() else { return }
+        history.ingest(stats, runningIDs: runningIDs)
         statsByID = Dictionary(stats.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
 

@@ -4,6 +4,8 @@ import SwiftUI
 struct ContainerDetailView: View {
     let container: Container
     var stats: ContainerStats?
+    /// Rolling CPU/memory series for the live chart (empty hides the chart).
+    var statsPoints: [StatsPoint] = []
 
     var body: some View {
         ScrollView {
@@ -74,6 +76,18 @@ struct ContainerDetailView: View {
 
     private func liveStats(_ stats: ContainerStats) -> some View {
         section("Live stats") {
+            if !statsPoints.isEmpty {
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack {
+                        Text("CPU").font(Theme.Typography.callout).foregroundStyle(.secondary)
+                        Spacer()
+                        Text(statsPoints.last?.cpuPercent.map { String(format: "%.1f%%", $0) } ?? "—")
+                            .font(Theme.Typography.caption)
+                            .contentTransition(.numericText())
+                    }
+                    CPUChart(points: statsPoints)
+                }
+            }
             if let fraction = stats.memoryFraction {
                 VStack(alignment: .leading, spacing: 5) {
                     HStack {

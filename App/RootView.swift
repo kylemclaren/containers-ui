@@ -5,13 +5,21 @@ struct RootView: View {
 
     var body: some View {
         @Bindable var app = app
-        NavigationSplitView {
-            Sidebar(selection: $app.selection)
-                .navigationSplitViewColumnWidth(min: 212, ideal: 232, max: 300)
-        } detail: {
-            DetailColumn()
+        ZStack {
+            NavigationSplitView {
+                Sidebar(selection: $app.selection)
+                    .navigationSplitViewColumnWidth(min: 212, ideal: 232, max: 300)
+            } detail: {
+                DetailColumn()
+            }
+            if app.paletteVisible {
+                CommandPaletteView()
+                    .transition(.opacity)
+                    .zIndex(1)
+            }
         }
-        .task { await app.refreshBackend() }
+        .animation(Theme.Motion.smooth, value: app.paletteVisible)
+        .task { app.startMonitoring() }
     }
 }
 
@@ -24,6 +32,7 @@ private struct DetailColumn: View {
             content
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .navigationTitle(app.selection?.title ?? "Containers")
     }
 
     @ViewBuilder private var content: some View {
@@ -40,10 +49,14 @@ private struct DetailColumn: View {
     @ViewBuilder private var resolvedScreen: some View {
         if let containerService = app.containerService,
            let imageService = app.imageService,
-           let systemService = app.systemService {
+           let systemService = app.systemService,
+           let volumeService = app.volumeService,
+           let networkService = app.networkService {
             switch app.selection ?? .containers {
             case .containers: ContainersScreen(service: containerService)
             case .images: ImagesScreen(service: imageService)
+            case .volumes: VolumesScreen(service: volumeService)
+            case .networks: NetworksScreen(service: networkService)
             case .system: SystemScreen(service: systemService)
             }
         } else {

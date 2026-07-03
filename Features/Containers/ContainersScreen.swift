@@ -32,10 +32,17 @@ struct ContainersScreen: View {
         }
         .task {
             await model.load()
+            // Re-check after load: an intent targeting a specific container
+            // can arrive before the list exists (palette → fresh screen).
+            consume(app.pendingIntent, listLoaded: true)
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 3_000_000_000)
                 await model.loadStats()
             }
+        }
+        .onChange(of: app.refreshTick) { Task { await model.load() } }
+        .onChange(of: app.pendingIntent, initial: true) { _, intent in
+            consume(intent, listLoaded: !model.containers.isEmpty)
         }
         .inspector(isPresented: inspectorPresented) {
             inspector
@@ -61,6 +68,31 @@ struct ContainersScreen: View {
                  ? "This container is running and will be force-removed."
                  : "This permanently removes the container.")
         }
+    }
+
+    /// Consumes a palette intent addressed to this screen. Intents that name a
+    /// container wait until the list has loaded (`listLoaded`) so a fresh mount
+    /// doesn't drop them; once loaded, unresolvable targets clear the intent.
+    private func consume(_ intent: AppIntent?, listLoaded: Bool) {
+        switch intent {
+        case .runContainer:
+            showRun = true
+        case .containerLogs(let id):
+            guard let container = model.containers.first(where: { $0.id == id }) else {
+                if listLoaded { app.clearIntent() }
+                return
+            }
+            logsTarget = container
+        case .inspectContainer(let id):
+            guard model.containers.contains(where: { $0.id == id }) else {
+                if listLoaded { app.clearIntent() }  // target vanished; don't open an empty inspector
+                return
+            }
+            model.selectedID = id
+        default:
+            return
+        }
+        app.clearIntent()
     }
 
     // MARK: Content
@@ -136,7 +168,11 @@ struct ContainersScreen: View {
 
     @ViewBuilder private var inspector: some View {
         if let container = model.selected {
-            ContainerDetailView(container: container, stats: model.statsByID[container.id])
+            ContainerDetailView(
+                container: container,
+                stats: model.statsByID[container.id],
+                statsPoints: model.history.points(for: container.id)
+            )
         } else {
             VStack(spacing: 10) {
                 Image(systemName: "sidebar.right")

@@ -72,6 +72,10 @@ struct ContainerService: Sendable {
         return args + [id] + command
     }
 
+    static func pruneArguments() -> [String] {
+        ["prune"]
+    }
+
     static func runArguments(_ options: RunOptions) -> [String] {
         var args = ["run"]
         if options.detach { args.append("--detach") }
@@ -149,5 +153,11 @@ struct ContainerService: Sendable {
     @discardableResult
     func run(_ options: RunOptions) async throws -> String {
         try await cli.text(Self.runArguments(options))
+    }
+
+    /// Removes all stopped containers.
+    @discardableResult
+    func prune() async throws -> String {
+        try await cli.text(Self.pruneArguments())
     }
 }

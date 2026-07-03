@@ -7,6 +7,7 @@ struct ImagesScreen: View {
     @State private var showPull = false
     @State private var tagTarget: ContainerImage?
     @State private var deleteTarget: ContainerImage?
+    @State private var runTarget: ContainerImage?
 
     init(service: ImageService) {
         _model = State(initialValue: ImagesViewModel(service: service))
@@ -25,7 +26,16 @@ struct ImagesScreen: View {
         } content: {
             content
         }
-        .task { await model.load() }
+        .task {
+            await model.load()
+            // Re-check after load: an intent targeting a specific image can
+            // arrive before the list exists (palette → fresh screen).
+            consume(app.pendingIntent, listLoaded: true)
+        }
+        .onChange(of: app.refreshTick) { Task { await model.load() } }
+        .onChange(of: app.pendingIntent, initial: true) { _, intent in
+            consume(intent, listLoaded: !model.images.isEmpty)
+        }
         .inspector(isPresented: inspectorPresented) {
             inspector.inspectorColumnWidth(min: 300, ideal: 360, max: 500)
         }
@@ -34,6 +44,13 @@ struct ImagesScreen: View {
         }
         .sheet(item: $tagTarget) { image in
             TagImageView(service: model.service, source: image.reference) { await model.load() }
+        }
+        .sheet(item: $runTarget) { image in
+            if let containerService = app.containerService {
+                RunContainerView(service: containerService, initialImage: image.reference) {
+                    app.select(.containers)
+                }
+            }
         }
         .confirmationDialog(
             "Delete “\(deleteTarget?.reference ?? "")”?",
@@ -47,6 +64,31 @@ struct ImagesScreen: View {
         } message: { _ in
             Text("This removes the image. Images used by a container can’t be deleted.")
         }
+    }
+
+    /// Consumes a palette intent addressed to this screen. Intents that name an
+    /// image wait until the list has loaded so a fresh mount doesn't drop them;
+    /// once loaded, unresolvable targets clear the intent.
+    private func consume(_ intent: AppIntent?, listLoaded: Bool) {
+        switch intent {
+        case .pullImage:
+            showPull = true
+        case .runImage(let reference):
+            guard let image = model.images.first(where: { $0.reference == reference }) else {
+                if listLoaded { app.clearIntent() }
+                return
+            }
+            runTarget = image
+        case .inspectImage(let id):
+            guard model.images.contains(where: { $0.id == id }) else {
+                if listLoaded { app.clearIntent() }  // target vanished; don't open an empty inspector
+                return
+            }
+            model.selectedID = id
+        default:
+            return
+        }
+        app.clearIntent()
     }
 
     @ViewBuilder private var content: some View {
@@ -102,6 +144,7 @@ struct ImagesScreen: View {
                                     model.selectedID = (model.selectedID == image.id) ? nil : image.id
                                 }
                             },
+                            onRun: app.containerService != nil ? { runTarget = image } : nil,
                             onTag: { tagTarget = image },
                             onDelete: { deleteTarget = image }
                         )

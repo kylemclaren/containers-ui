@@ -3,6 +3,7 @@ import SwiftUI
 /// A form sheet for `container run`.
 struct RunContainerView: View {
     let service: ContainerService
+    var initialImage: String? = nil
     var onComplete: () async -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -20,6 +21,13 @@ struct RunContainerView: View {
 
     @State private var isSubmitting = false
     @State private var errorMessage: String?
+
+    init(service: ContainerService, initialImage: String? = nil, onComplete: @escaping () async -> Void) {
+        self.service = service
+        self.initialImage = initialImage
+        self.onComplete = onComplete
+        _image = State(initialValue: initialImage ?? "")
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -171,7 +179,7 @@ struct RunContainerView: View {
             volumes: volumes.nonEmptyLines,
             cpus: Int(cpus.trimmingCharacters(in: .whitespaces)),
             memory: memory.trimmedNonEmpty,
-            command: commandText.split(separator: " ").map(String.init)
+            command: CommandTokenizer.tokenize(commandText)
         )
 
         do {

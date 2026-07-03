@@ -61,6 +61,10 @@ struct ArgumentBuilderTests {
         #expect(ContainerService.runArguments(options) == ["run", "--detach", "alpine"])
     }
 
+    @Test func containerPrune() {
+        #expect(ContainerService.pruneArguments() == ["prune"])
+    }
+
     @Test func images() {
         #expect(ImageService.listArguments() == ["image", "list", "--format", "json"])
         #expect(ImageService.inspectArguments(reference: "alpine") == ["image", "inspect", "alpine"])
@@ -68,6 +72,10 @@ struct ArgumentBuilderTests {
         #expect(ImageService.deleteArguments(references: ["a", "b"], force: true) == ["image", "delete", "--force", "a", "b"])
         #expect(ImageService.deleteArguments(references: ["a"], force: false) == ["image", "delete", "a"])
         #expect(ImageService.tagArguments(source: "a", target: "b") == ["image", "tag", "a", "b"])
+    }
+
+    @Test func imagePrune() {
+        #expect(ImageService.pruneArguments() == ["image", "prune"])
     }
 
     @Test func system() {

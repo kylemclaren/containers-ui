@@ -48,6 +48,8 @@ struct PillButton<Label: View>: View {
         Button(action: action) {
             label()
                 .font(Theme.Typography.caption)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
                 .foregroundStyle(foreground)
                 .frame(height: height)
                 .padding(.horizontal, 13)
@@ -123,6 +125,7 @@ struct CircleIconButton: View {
 struct PulsingDot: View {
     var color: Color
     var active: Bool
+    var size: CGFloat = 7
     @State private var animate = false
 
     var body: some View {
@@ -130,13 +133,13 @@ struct PulsingDot: View {
             if active {
                 Circle()
                     .fill(color.opacity(0.35))
-                    .frame(width: 7, height: 7)
+                    .frame(width: size, height: size)
                     .scaleEffect(animate ? 2.4 : 1)
                     .opacity(animate ? 0 : 0.6)
             }
-            Circle().fill(color).frame(width: 7, height: 7)
+            Circle().fill(color).frame(width: size, height: size)
         }
-        .frame(width: 7, height: 7)
+        .frame(width: size, height: size)
         .onAppear {
             guard active else { return }
             withAnimation(.easeOut(duration: 1.5).repeatForever(autoreverses: false)) {
@@ -181,6 +184,44 @@ struct StatChip: View {
             Theme.Palette.controlBackground,
             in: RoundedRectangle(cornerRadius: Theme.Metrics.chipCorner, style: .continuous)
         )
+    }
+}
+
+/// A prominent progress bar with an accent-gradient fill. Supports a determinate
+/// `fraction` and an `indeterminate` sweeping mode for when totals aren't known.
+struct ProgressBar: View {
+    var fraction: Double
+    var indeterminate: Bool = false
+    var height: CGFloat = 10
+
+    @State private var sweep = false
+
+    var body: some View {
+        GeometryReader { geo in
+            let width = geo.size.width
+            let clamped = min(1, max(0, fraction))
+            ZStack(alignment: .leading) {
+                Capsule().fill(Theme.Palette.controlBackground)
+                if indeterminate {
+                    Capsule()
+                        .fill(Theme.Palette.accentGradient)
+                        .frame(width: width * 0.4)
+                        .offset(x: sweep ? width * 0.6 : -width * 0.05)
+                        .onAppear {
+                            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
+                                sweep = true
+                            }
+                        }
+                } else {
+                    Capsule()
+                        .fill(Theme.Palette.accentGradient)
+                        .frame(width: clamped > 0 ? max(height, width * clamped) : 0)
+                        .animation(Theme.Motion.smooth, value: clamped)
+                }
+            }
+            .clipShape(Capsule())
+        }
+        .frame(height: height)
     }
 }
 
