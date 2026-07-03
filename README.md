@@ -1,11 +1,33 @@
-<h1>
-  <img alt="ContainerUI" src="https://github.com/apple/container/raw/main/docs/assets/landing-movie.gif" width="0" height="0" />
-  ContainerUI
-</h1>
+<div align="center">
 
-A native **SwiftUI** desktop app for managing [Apple's `container`](https://github.com/apple/container) tool — run and inspect Linux containers, browse images, and control the system service, all from a polished Mac UI.
+<img src="docs/media/icon.png" width="120" height="120" alt="ContainerUI icon" />
 
-ContainerUI is a thin, robust GUI **on top of the `container` command-line tool**. It shells out to the supported CLI and decodes its `--format json` output, so it stays compatible across `container` releases instead of binding to internal APIs.
+# ContainerUI
+
+**A native SwiftUI desktop app for Apple's [`container`](https://github.com/apple/container) tool.**
+
+Run and inspect Linux containers, manage images, volumes & networks, and control the<br/>system service — with live resource charts and a ⌘K command palette, from a polished Mac UI.
+
+<a href="https://github.com/kylemclaren/container-ui/actions/workflows/ci.yml"><img src="https://github.com/kylemclaren/container-ui/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+<a href="https://github.com/kylemclaren/container-ui/releases/latest"><img src="https://img.shields.io/github/v/release/kylemclaren/container-ui?display_name=tag&color=2563eb&label=release" alt="Latest release" /></a>
+<a href="https://github.com/kylemclaren/container-ui/releases"><img src="https://img.shields.io/github/downloads/kylemclaren/container-ui/total?color=16a34a&label=downloads" alt="Downloads" /></a>
+<img src="https://img.shields.io/badge/macOS%2026-Apple%20silicon-000000?logo=apple&logoColor=white" alt="macOS 26 · Apple silicon" />
+
+<br/>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/media/containers-dark.png" />
+  <source media="(prefers-color-scheme: light)" srcset="docs/media/containers-light.png" />
+  <img src="docs/media/containers-light.png" alt="ContainerUI showing the Containers screen with live stats" width="900" />
+</picture>
+
+<sub>The screenshot follows your GitHub theme — light or dark.</sub>
+
+</div>
+
+---
+
+**ContainerUI** is a thin, robust GUI **on top of the `container` command-line tool**. It shells out to the supported CLI and decodes its `--format json` output, so it stays compatible across `container` releases instead of binding to internal APIs.
 
 ---
 
