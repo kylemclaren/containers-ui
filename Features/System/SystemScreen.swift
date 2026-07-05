@@ -87,6 +87,8 @@ struct SystemScreen: View {
                     if let usage = model.diskUsage {
                         diskUsageSection(usage)
                     }
+
+                    RegistriesSection()
                 }
                 .padding(20)
                 .frame(maxWidth: 760, alignment: .leading)

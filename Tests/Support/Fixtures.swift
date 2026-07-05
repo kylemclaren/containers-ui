@@ -190,5 +190,14 @@ enum Fixtures {
     }
     """
 
+    /// `container registry list --format json` — best-guess keys.
+    static let registryList = """
+    [ { "hostname": "ghcr.io", "username": "octocat", "created": "2026-06-01T10:00:00Z", "modified": "2026-06-20T12:30:00Z" } ]
+    """
+    /// Same, exercising the alternate key spellings the binary strings hint at.
+    static let registryListAltKeys = """
+    [ { "host": "registry.example.com:5000", "user": "deploy" } ]
+    """
+
     static func data(_ string: String) -> Data { Data(string.utf8) }
 }

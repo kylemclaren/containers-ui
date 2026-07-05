@@ -45,6 +45,7 @@ struct ImagesScreen: View {
         }
         .sheet(isPresented: $showPull) {
             PullImageView(service: model.service) { await model.load() }
+                .environment(app)
         }
         .sheet(isPresented: $showBuild) {
             BuildImageView(service: model.service) { await model.load() }

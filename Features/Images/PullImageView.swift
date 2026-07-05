@@ -8,6 +8,7 @@ struct PullImageView: View {
     var onComplete: () async -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppModel.self) private var app
 
     @State private var reference: String
     @State private var lines: [String] = []
@@ -17,6 +18,7 @@ struct PullImageView: View {
     @State private var finished = false
     @State private var errorMessage: String?
     @State private var showConsole = false
+    @State private var showLogin = false
 
     init(service: ImageService, initialReference: String = "", onComplete: @escaping () async -> Void) {
         self.service = service
@@ -30,6 +32,13 @@ struct PullImageView: View {
             Divider()
             VStack(alignment: .leading, spacing: 14) {
                 inputRow
+                if let host = loginHintHost {
+                    InlineBanner(kind: .info,
+                        title: "Not signed in to \(host)",
+                        message: "You can still pull public images. Sign in to pull private repositories.",
+                        actionTitle: "Log in",
+                        action: { showLogin = true })
+                }
                 progressCard
                 consoleDisclosure
             }
@@ -40,6 +49,26 @@ struct PullImageView: View {
         .frame(width: 600)
         .fixedSize(horizontal: false, vertical: true)  // hug content; no dead space
         .animation(Theme.Motion.spring, value: showConsole)
+        .sheet(isPresented: $showLogin) {
+            if let service = app.registryService {
+                RegistryLoginView(service: service, initialServer: loginHintHost ?? "") {
+                    await app.refreshRegistries()
+                }
+            }
+        }
+        .task { await app.refreshRegistries() }
+    }
+
+    /// The normalized registry host to nag about, or nil if the reference is
+    /// empty, targets Docker Hub, or the logged-in set isn't known yet.
+    private var loginHintHost: String? {
+        let trimmed = reference.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return nil }
+        let host = RegistryHost.forReference(trimmed)
+        guard !RegistryHost.isDockerHub(host) else { return nil }
+        guard let known = app.loggedInRegistries else { return nil }
+        guard !known.contains(host) else { return nil }
+        return host
     }
 
     // MARK: - Header / footer

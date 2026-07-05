@@ -76,4 +76,51 @@ struct ServiceTests {
         #expect(received == ["Pulling...", "Done"])
         #expect(mock.lastArguments == ["image", "pull", "--progress", "plain", "nginx"])
     }
+
+    @Test func loginPassesPasswordViaStdinNotArgs() async throws {
+        let mock = MockCommandRunner()
+        let service = RegistryService(cli: .mock(mock))
+
+        try await service.login(server: "ghcr.io", username: "me", password: "s3cret", scheme: .auto)
+
+        #expect(mock.invocations.last?.standardInput == Data("s3cret".utf8))
+        #expect(mock.lastArguments!.contains("--password-stdin"))
+        #expect(!mock.lastArguments!.contains("s3cret"))
+        #expect(mock.lastArguments!.last == "ghcr.io")
+    }
+
+    @Test func loginPropagatesFailure() async {
+        let mock = MockCommandRunner(stderr: "unauthorized", exitCode: 1)
+        let service = RegistryService(cli: .mock(mock))
+
+        do {
+            try await service.login(server: "ghcr.io", username: "me", password: "s3cret", scheme: .auto)
+            Issue.record("expected login() to throw")
+        } catch is CLIError {
+            // expected
+        } catch {
+            Issue.record("unexpected error: \(error)")
+        }
+    }
+
+    @Test func loggedInHostsParsesQuietAndNormalizes() async throws {
+        let mock = MockCommandRunner(stdout: "ghcr.io\nindex.docker.io\n\n")
+        let service = RegistryService(cli: .mock(mock))
+
+        let hosts = try await service.loggedInHosts()
+
+        #expect(hosts == ["ghcr.io", "docker.io"])
+    }
+
+    @Test func registryListDecodes() async throws {
+        let mock = MockCommandRunner(stdout: Fixtures.registryList)
+        let service = RegistryService(cli: .mock(mock))
+
+        let logins = try await service.list()
+
+        #expect(logins.count == 1)
+        #expect(logins.first?.hostname == "ghcr.io")
+        #expect(logins.first?.username == "octocat")
+        #expect(logins.first?.modified != nil)
+    }
 }
