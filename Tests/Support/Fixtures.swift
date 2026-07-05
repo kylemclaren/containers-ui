@@ -190,11 +190,12 @@ enum Fixtures {
     }
     """
 
-    /// `container registry list --format json` — best-guess keys.
+    /// `container registry list --format json` — real shipping-CLI shape
+    /// (host under `name`/`id`, timestamps under `creationDate`/`modificationDate`).
     static let registryList = """
-    [ { "hostname": "ghcr.io", "username": "octocat", "created": "2026-06-01T10:00:00Z", "modified": "2026-06-20T12:30:00Z" } ]
+    [ { "creationDate": "2026-07-05T18:07:01Z", "id": "ghcr.io", "labels": {}, "modificationDate": "2026-07-05T18:07:01Z", "name": "ghcr.io", "username": "kylemclaren" } ]
     """
-    /// Same, exercising the alternate key spellings the binary strings hint at.
+    /// Older/alternate key spellings the tolerant decoder still accepts.
     static let registryListAltKeys = """
     [ { "host": "registry.example.com:5000", "user": "deploy" } ]
     """

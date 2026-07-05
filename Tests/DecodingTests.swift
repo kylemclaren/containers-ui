@@ -96,10 +96,10 @@ struct DecodingTests {
     func registryListDecodesGuessedKeys() throws {
         let logins = try decoder.decode([RegistryLogin].self, from: Fixtures.data(Fixtures.registryList))
         let login = try #require(logins.first)
-        #expect(login.hostname == "ghcr.io")
-        #expect(login.username == "octocat")
-        #expect(login.created != nil)
-        #expect(login.modified != nil)
+        #expect(login.hostname == "ghcr.io")       // from real CLI `name`/`id`
+        #expect(login.username == "kylemclaren")
+        #expect(login.created != nil)              // from `creationDate`
+        #expect(login.modified != nil)             // from `modificationDate`
     }
 
     @Test("Registry list tolerates alternate key spellings")

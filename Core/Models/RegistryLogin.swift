@@ -1,8 +1,12 @@
 import Foundation
 
 /// One stored registry credential, as listed by `container registry list`.
-/// JSON keys are unverified (the CLI returns `[]` when empty), so decoding is
-/// tolerant of `hostname`/`host`/`server` and `username`/`user`.
+///
+/// The shipping CLI emits `name`/`id` for the host and `creationDate`/
+/// `modificationDate` for the timestamps (verified against `registry list
+/// --format json`). Decoding stays tolerant of the older `hostname`/`host`/
+/// `server`, `created`/`modified`, and `user` spellings so a key rename degrades
+/// gracefully instead of crashing the list.
 struct RegistryLogin: Identifiable, Sendable, Equatable {
     var hostname: String
     var username: String?
@@ -13,24 +17,31 @@ struct RegistryLogin: Identifiable, Sendable, Equatable {
 
 extension RegistryLogin: Decodable {
     private enum CodingKeys: String, CodingKey {
-        case hostname, host, server
+        case hostname, name, id, host, server
         case username, user
-        case created, modified
+        case created, creationDate
+        case modified, modificationDate
     }
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        let host = try c.decodeIfPresent(String.self, forKey: .hostname)
-            ?? c.decodeIfPresent(String.self, forKey: .host)
-            ?? c.decodeIfPresent(String.self, forKey: .server)
-        guard let host, !host.isEmpty else {
+        // First key that's present wins (a long `??` chain trips the type-checker).
+        func first(_ keys: CodingKeys...) throws -> String? {
+            for key in keys where try c.decodeIfPresent(String.self, forKey: key) != nil {
+                return try c.decodeIfPresent(String.self, forKey: key)
+            }
+            return nil
+        }
+        // Real CLI keys (`name`/`id`) first, then the older guessed spellings.
+        guard let host = try first(.hostname, .name, .id, .host, .server), !host.isEmpty else {
             throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath,
-                debugDescription: "RegistryLogin has no hostname/host/server key"))
+                debugDescription: "RegistryLogin has no name/id/hostname key"))
         }
         hostname = host
-        username = try c.decodeIfPresent(String.self, forKey: .username)
-            ?? c.decodeIfPresent(String.self, forKey: .user)
-        created = try c.decodeIfPresent(Date.self, forKey: .created)
-        modified = try c.decodeIfPresent(Date.self, forKey: .modified)
+        username = try first(.username, .user)
+        created = try c.decodeIfPresent(Date.self, forKey: .creationDate)
+            ?? c.decodeIfPresent(Date.self, forKey: .created)
+        modified = try c.decodeIfPresent(Date.self, forKey: .modificationDate)
+            ?? c.decodeIfPresent(Date.self, forKey: .modified)
     }
 }
 

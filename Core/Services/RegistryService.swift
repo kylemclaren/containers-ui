@@ -39,12 +39,19 @@ struct RegistryService: Sendable {
     func list() async throws -> [RegistryLogin] {
         try await cli.decode([RegistryLogin].self, from: Self.listArguments())
     }
-    func loggedInHosts() async throws -> Set<String> {
+    /// Hostnames exactly as the CLI stored them — used for display and for
+    /// `logout(server:)`, which must pass the verbatim stored name (no alias
+    /// folding or lowercasing, or the logout won't match the credential).
+    func loggedInHostsRaw() async throws -> [String] {
         let out = try await cli.text(Self.listQuietArguments())
-        let hosts = out.split(separator: "\n")
+        return out.split(separator: "\n")
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
-            .map { RegistryHost.normalize($0) }
-        return Set(hosts)
+    }
+
+    /// Normalized set of logged-in hosts (Docker Hub aliases folded) — the
+    /// authoritative membership check for the pull hint.
+    func loggedInHosts() async throws -> Set<String> {
+        Set(try await loggedInHostsRaw().map(RegistryHost.normalize))
     }
 }

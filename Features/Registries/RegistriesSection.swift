@@ -27,9 +27,13 @@ struct RegistriesSection: View {
             if isLoading {
                 ProgressView().controlSize(.small)
             } else if logins.isEmpty {
-                Text("Not signed in to any registries.")
-                    .font(Theme.Typography.callout)
-                    .foregroundStyle(.secondary)
+                // Only assert "signed in to nothing" when the list actually
+                // succeeded — an error below means we don't really know.
+                if errorMessage == nil {
+                    Text("Not signed in to any registries.")
+                        .font(Theme.Typography.callout)
+                        .foregroundStyle(.secondary)
+                }
             } else {
                 VStack(spacing: 8) {
                     ForEach(logins) { login in
@@ -74,10 +78,14 @@ struct RegistriesSection: View {
     private func reload() async {
         guard let service = app.registryService else { logins = []; return }
         isLoading = logins.isEmpty
+        errorMessage = nil   // a successful refresh must clear any prior error
         defer { isLoading = false }
         do { logins = try await service.list() }
         catch CLIError.decodingFailed {
-            let hosts = (try? await service.loggedInHosts()) ?? []
+            // Decode of the rich JSON failed — fall back to the verbatim hostnames
+            // from `--quiet`. These must NOT be normalized: logout() sends the name
+            // straight to the CLI, which stored it exactly as typed.
+            let hosts = (try? await service.loggedInHostsRaw()) ?? []
             logins = hosts.sorted().map { RegistryLogin(hostname: $0, username: nil, created: nil, modified: nil) }
         }
         catch let e as CLIError { errorMessage = e.localizedDescription }

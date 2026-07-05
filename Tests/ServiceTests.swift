@@ -112,6 +112,16 @@ struct ServiceTests {
         #expect(hosts == ["ghcr.io", "docker.io"])
     }
 
+    @Test func loggedInHostsRawPreservesVerbatimSpelling() async throws {
+        // logout(server:) needs the exact stored name — no alias folding/lowercasing.
+        let mock = MockCommandRunner(stdout: "index.docker.io\nGHCR.IO\n\n")
+        let service = RegistryService(cli: .mock(mock))
+
+        let hosts = try await service.loggedInHostsRaw()
+
+        #expect(hosts == ["index.docker.io", "GHCR.IO"])
+    }
+
     @Test func registryListDecodes() async throws {
         let mock = MockCommandRunner(stdout: Fixtures.registryList)
         let service = RegistryService(cli: .mock(mock))
@@ -120,7 +130,7 @@ struct ServiceTests {
 
         #expect(logins.count == 1)
         #expect(logins.first?.hostname == "ghcr.io")
-        #expect(logins.first?.username == "octocat")
+        #expect(logins.first?.username == "kylemclaren")
         #expect(logins.first?.modified != nil)
     }
 }
