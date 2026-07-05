@@ -92,6 +92,26 @@ struct DecodingTests {
         #expect(usage.containers.active == 1)
     }
 
+    @Test("Registry list decodes guessed keys")
+    func registryListDecodesGuessedKeys() throws {
+        let logins = try decoder.decode([RegistryLogin].self, from: Fixtures.data(Fixtures.registryList))
+        let login = try #require(logins.first)
+        #expect(login.hostname == "ghcr.io")       // from real CLI `name`/`id`
+        #expect(login.username == "kylemclaren")
+        #expect(login.created != nil)              // from `creationDate`
+        #expect(login.modified != nil)             // from `modificationDate`
+    }
+
+    @Test("Registry list tolerates alternate key spellings")
+    func registryListToleratesAltKeys() throws {
+        let logins = try decoder.decode([RegistryLogin].self, from: Fixtures.data(Fixtures.registryListAltKeys))
+        let login = try #require(logins.first)
+        #expect(login.hostname == "registry.example.com:5000")
+        #expect(login.username == "deploy")
+        #expect(login.created == nil)
+        #expect(login.modified == nil)
+    }
+
     @Test("Version array has 2 elements up, 1 down")
     func version() throws {
         let up = try decoder.decode([VersionInfo].self, from: Fixtures.data(Fixtures.versionUp))

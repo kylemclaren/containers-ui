@@ -59,6 +59,9 @@ final class AppModel {
     /// True while a service start/stop initiated from the menu bar is in flight.
     private(set) var isMutatingService = false
 
+    /// Normalized logged-in registry hosts. nil = unknown (list failed / no CLI).
+    private(set) var loggedInRegistries: Set<String>?
+
     @ObservationIgnored private var monitorTask: Task<Void, Never>?
 
     /// User override for the binary path (persisted). Empty means "auto-detect".
@@ -88,6 +91,7 @@ final class AppModel {
     var systemService: SystemService? { cli.map(SystemService.init) }
     var volumeService: VolumeService? { cli.map(VolumeService.init) }
     var networkService: NetworkService? { cli.map(NetworkService.init) }
+    var registryService: RegistryService? { cli.map(RegistryService.init) }
 
     /// Docker Hub image search talks to the network directly (the CLI has no
     /// registry-search command), so it's available regardless of the backend.
@@ -310,5 +314,12 @@ final class AppModel {
 
     func select(_ item: SidebarItem) {
         withAnimation(Theme.Motion.smooth) { selection = item }
+    }
+
+    /// Refreshes the logged-in registry set from `registry list --quiet`.
+    /// Any failure degrades to nil (unknown) so the pull hint never falsely nags.
+    func refreshRegistries() async {
+        guard let registryService else { loggedInRegistries = nil; return }
+        loggedInRegistries = try? await registryService.loggedInHosts()
     }
 }

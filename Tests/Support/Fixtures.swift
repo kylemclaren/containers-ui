@@ -190,5 +190,15 @@ enum Fixtures {
     }
     """
 
+    /// `container registry list --format json` — real shipping-CLI shape
+    /// (host under `name`/`id`, timestamps under `creationDate`/`modificationDate`).
+    static let registryList = """
+    [ { "creationDate": "2026-07-05T18:07:01Z", "id": "ghcr.io", "labels": {}, "modificationDate": "2026-07-05T18:07:01Z", "name": "ghcr.io", "username": "kylemclaren" } ]
+    """
+    /// Older/alternate key spellings the tolerant decoder still accepts.
+    static let registryListAltKeys = """
+    [ { "host": "registry.example.com:5000", "user": "deploy" } ]
+    """
+
     static func data(_ string: String) -> Data { Data(string.utf8) }
 }

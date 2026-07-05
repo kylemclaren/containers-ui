@@ -112,6 +112,25 @@ struct ArgumentBuilderTests {
         #expect(ImageService.buildArguments(options) == ["build", "--progress", "plain", "ctx"])
     }
 
+    @Test func registry() {
+        let withUser = RegistryService.loginArguments(server: "ghcr.io", username: "me", scheme: .https)
+        #expect(withUser == ["registry", "login", "--scheme", "https", "--username", "me", "--password-stdin", "ghcr.io"])
+
+        let autoScheme = RegistryService.loginArguments(server: "ghcr.io", username: "me", scheme: .auto)
+        #expect(autoScheme == ["registry", "login", "--username", "me", "--password-stdin", "ghcr.io"])
+
+        let noUser = RegistryService.loginArguments(server: "ghcr.io", username: nil, scheme: .auto)
+        #expect(noUser == ["registry", "login", "--password-stdin", "ghcr.io"])
+
+        for args in [withUser, autoScheme, noUser] {
+            #expect(!args.contains("--password"))
+        }
+
+        #expect(RegistryService.logoutArguments(server: "ghcr.io") == ["registry", "logout", "ghcr.io"])
+        #expect(RegistryService.listArguments() == ["registry", "list", "--format", "json"])
+        #expect(RegistryService.listQuietArguments() == ["registry", "list", "--quiet"])
+    }
+
     @Test func system() {
         #expect(SystemService.statusArguments() == ["system", "status", "--format", "json"])
         #expect(SystemService.dfArguments() == ["system", "df", "--format", "json"])

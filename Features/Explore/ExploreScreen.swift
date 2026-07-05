@@ -32,7 +32,10 @@ struct ExploreScreen: View {
         }
         .sheet(item: $pullTarget) { target in
             if let imageService = app.imageService {
+                // Re-inject AppModel: PullImageView reads it (registry-aware hint),
+                // and sheet content doesn't inherit it reliably across the boundary.
                 PullImageView(service: imageService, initialReference: target.reference) {}
+                    .environment(app)
             }
         }
     }
